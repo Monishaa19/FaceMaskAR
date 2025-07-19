@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mask Detection</title>
+  <style>
+    body { text-align: center; background: #f5f5f5; }
+    canvas { border: 2px solid black; }
+  </style>
+</head>
+<body>
+  <h1>Face Mask Detection</h1>
+  <video id="video" width="400" autoplay></video>
+  <canvas id="canvas" width="400" height="300"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; });
+
+    setInterval(async () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const image = canvas.toDataURL('image/jpeg');
+
+      const response = await fetch("http://localhost:5000/detect_mask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image })
+      });
+
+      const data = await response.json();
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      data.results.forEach(face => {
+        const [x1, y1, x2, y2] = face.box;
+        ctx.strokeStyle = face.label === "Mask" ? "green" : "red";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        ctx.fillStyle = face.label === "Mask" ? "green" : "red";
+        ctx.fillText(`${face.label} ${(face.probability*100).toFixed(2)}%`, x1, y1 - 5);
+      });
+    }, 1000);
+  </script>
+</body>
+</html>
